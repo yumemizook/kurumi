@@ -9,9 +9,35 @@ using System.Windows.Forms;
 namespace Kurumi {
     class Program {
         static void Main(string[] args) {
-            KurumiForm form = new KurumiForm();
+            if (args.Length > 0 && args[0].ToLower() == "fix") {
+                try {
+                    Console.WriteLine("Obtaining network time...");
+                    DateTime networkTime = TryGetNetworkTime();
+                    DateTime localTime = DateTime.Now;
+                    TimeSpan offset = localTime - networkTime;
 
-            Application.Run(form);
+                    Console.WriteLine($"Local time:  {localTime.ToLongTimeString()}");
+                    Console.WriteLine($"Network time: {networkTime.ToLongTimeString()}");
+                    Console.WriteLine($"Offset: {(offset.Ticks >= 0 ? "+" : "-")}{Math.Floor(Math.Abs(offset.TotalMinutes))}:{Math.Abs(offset.Seconds).ToString().PadLeft(2, '0')}.{Math.Abs(offset.Milliseconds).ToString().PadLeft(3, '0')}");
+
+                    if (Math.Abs(offset.TotalMilliseconds) < 10) {
+                        Console.WriteLine("Clock is already exact (within 10ms).");
+                        return;
+                    }
+
+                    Console.WriteLine("Fixing system time...");
+                    DateTime target = DateTime.UtcNow.Subtract(offset);
+                    SYSTEMTIME systime = new SYSTEMTIME(target);
+                    SetSystemTime(ref systime);
+                    Console.WriteLine("System time updated successfully.");
+                } catch (Exception ex) {
+                    Console.WriteLine($"Error: {ex.Message}");
+                    Environment.Exit(1);
+                }
+            } else {
+                KurumiForm form = new KurumiForm();
+                Application.Run(form);
+            }
         }
 
         /// <summary>
